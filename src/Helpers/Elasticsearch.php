@@ -23,16 +23,16 @@ class Elasticsearch
         string $index,
         string $id,
         array $body
-    ): array {
+    ): bool {
         try {
             $client = $this->newElasticsearchClient();
-            $response = $client->index([
+            $client->index([
                 'index' => $index,
                 'id' => $id,
                 'body' => $body,
             ]);
 
-            return $response;
+            return true;
         } catch (Exception $error) {
             error_log($error->getMessage());
         }
@@ -49,7 +49,7 @@ class Elasticsearch
                 'scroll' => '1m',
                 'size' => $size,
                 'body' => $body,
-                'index' => $index,
+                'index' => $index . '-*',
             ]);
 
             return $response;

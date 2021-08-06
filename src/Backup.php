@@ -66,14 +66,14 @@ class Backup
                 isset($response['hits']['hits']) &&
                 count($response['hits']['hits']) > 0
             ) {
+                $hits = $response['hits']['hits'] ?? [];
+                $this->handleHits(
+                    $hits
+                );
+
                 $scrollId = $response['_scroll_id'] ?? null;
                 $response = $this->elasticsearch->scroll(
                     $scrollId
-                );
-                $hits = $response['hits']['hits'] ?? [];
-
-                $this->handleHits(
-                    $hits
                 );
             }
 
@@ -186,7 +186,10 @@ class Backup
         }
 
         $fileNames = scandir('storage/backup');
-        $fileNames = array_slice($fileNames, 2);
+        $fileNames = array_slice(
+            $fileNames,
+            3
+        );
         $path = 'storage/backup/';
         $totalFiles = count($fileNames);
 

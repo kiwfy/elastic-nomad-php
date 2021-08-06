@@ -46,6 +46,8 @@ class Restore
         $this->log->show('Starting Restore');
 
         try {
+            $this->downloadFilesToRestore();
+
             $fileNames = $this->listFilesToRestore();
 
             foreach ($fileNames as $fileName) {
@@ -108,7 +110,7 @@ class Restore
         );
         $files = array_slice(
             $files,
-            2
+            3
         );
 
         return $files;
@@ -133,7 +135,7 @@ class Restore
         }
 
         while (($line = fgets($handle)) !== false) {
-            $item = json_encode(
+            $item = json_decode(
                 trim($line),
                 true
             );
@@ -141,7 +143,12 @@ class Restore
             $this->elasticsearch->index(
                 $item['_index'],
                 $item['_id'],
-                $item
+                $item['_source']
+            );
+
+            file_put_contents(
+                'logs/last-restored.txt',
+                json_encode($item)
             );
         }
 
