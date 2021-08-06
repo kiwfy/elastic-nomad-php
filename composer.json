@@ -1,0 +1,15 @@
+{
+    "name": "pedro/elastic-nomad-php",
+    "type": "project",
+    "require": {
+        "vlucas/phpdotenv": "^4.1",
+        "elasticsearch/elasticsearch": "~7.0",
+        "kiwfy/ulid-php": "^1.0",
+        "aws/aws-sdk-php": "^3.187"
+    },
+    "autoload": {
+        "psr-4": {
+            "ElasticNomad\\": "src/"
+        }
+    }
+}
