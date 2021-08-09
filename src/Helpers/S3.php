@@ -21,6 +21,14 @@ class S3
         ];
     }
 
+    /**
+     * Download object as file.
+     *
+     * @param string $bucket
+     * @param string $key
+     * @param string $localPath
+     * @return void
+     */
     public function download(
         string $bucket,
         string $key,
@@ -38,6 +46,14 @@ class S3
         }
     }
 
+    /**
+     * Upload file.
+     *
+     * @param string $bucket
+     * @param string $key
+     * @param string $localPath
+     * @return void
+     */
     public function uploadFile(
         string $bucket,
         string $key,
@@ -61,6 +77,11 @@ class S3
         }
     }
 
+    /**
+     * Get new S3Client object.
+     *
+     * @return S3Client
+     */
     public function newS3Client(): S3Client
     {
         return new S3Client(

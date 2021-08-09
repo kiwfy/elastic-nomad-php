@@ -10,7 +10,7 @@ use Ulid\Ulid;
 
 class Backup
 {
-    private $settings = [
+    private $options = [
         'elasticsearch' => [
             'index' => '',
             'size' => 25,
@@ -22,31 +22,27 @@ class Backup
         ],
         'file' => [
             'total_items' => 100,
+            'date' => '',
+            'time' => '',
         ],
     ];
 
     private $currentFile = [];
-
     private $log;
     private $elasticsearch;
     private $s3;
 
-    public function __construct(
-        array $settings
-    ) {
-        $this->settings = array_merge(
-            $this->settings,
-            $settings
-        );
-    }
-
     /**
      * Execute Backup.
      *
+     * @param array $options
      * @return void
      */
-    public function execute(): void
-    {
+    public function execute(
+        array $options
+    ): void {
+        $this->setOptions($options);
+
         $this->log = $this->newLog();
         $this->elasticsearch = $this->newElasticsearch();
         $this->s3 = $this->newS3();
@@ -57,9 +53,9 @@ class Backup
         try {
             $query = $this->loadSearchQuery();
             $response = $this->elasticsearch->search(
-                $this->settings['elasticsearch']['index'],
+                $this->options['elasticsearch']['index'],
                 $query,
-                $this->settings['elasticsearch']['size']
+                $this->options['elasticsearch']['size']
             );
 
             while (
@@ -79,6 +75,7 @@ class Backup
 
             $this->uploadFiles();
 
+            $this->log->show('Backup finished');
             $this->log->showDuration();
         } catch (Exception $error) {
             error_log($error->getMessage());
@@ -134,12 +131,23 @@ class Backup
     ): bool {
         if (
             empty($this->currentFile) ||
-            $this->currentFile['size'] >= $this->settings['file']['total_items']
+            $this->currentFile['size'] >= $this->options['file']['total_items']
         ) {
             $this->currentFile = $this->createFile();
+            $indexLine = [
+                'index' => $this->options['elasticsearch']['index'],
+            ];
+            file_put_contents(
+                $this->currentFile['path'],
+                json_encode($indexLine) . "\n"
+            );
         }
 
-        $content = json_encode($hit) . "\n";
+        $content = [
+            '_id' => $hit['_id'] ?? '',
+            '_source' => $hit['_source'] ?? [],
+        ];
+        $content = json_encode($content) . "\n";
 
         file_put_contents(
             $this->currentFile['path'],
@@ -147,7 +155,7 @@ class Backup
             FILE_APPEND
         );
         file_put_contents(
-            'logs/last-backup.txt',
+            'logs/last-backup.log',
             $content
         );
         $this->currentFile['size'] ++;
@@ -165,11 +173,18 @@ class Backup
         $ulid = $this->newUlid()
             ->generate();
 
-        $this->log->show("Creating new file: '" . $ulid . ".txt'");
+        $name = $this->options['elasticsearch']['index'] .
+            '_' . $this->options['file']['date'] .
+            '_' . $this->options['file']['time'] .
+            '_' . $ulid .
+            '.txt';
+        $path = 'storage/backup/' . $name;
+
+        $this->log->show("Creating new file: '" . $name . "'");
 
         return [
-            'name' => $ulid . '.txt',
-            'path' => 'storage/backup/' . $ulid . '.txt',
+            'name' => $name,
+            'path' => $path,
             'size' => 0,
         ];
     }
@@ -181,7 +196,7 @@ class Backup
      */
     public function uploadFiles(): bool
     {
-        if (!$this->settings['s3']['enabled']) {
+        if (!$this->options['s3']['enabled']) {
             return false;
         }
 
@@ -196,18 +211,35 @@ class Backup
         $this->log->show("Uploading $totalFiles files");
 
         foreach ($fileNames as $fileName) {
-            $key = $this->settings['s3']['folder'] .
+            $key = $this->options['s3']['folder'] .
+                '/' .
+                $this->options['elasticsearch']['index'] .
                 '/' .
                 $fileName;
 
             $this->s3->uploadFile(
-                $this->settings['s3']['bucket'],
+                $this->options['s3']['bucket'],
                 $key,
                 $path . $fileName
             );
         }
 
         return true;
+    }
+
+    /**
+     * Set options.
+     *
+     * @param array $options
+     * @return void
+     */
+    public function setOptions(
+        array $options
+    ): void {
+        $this->options = array_merge(
+            $this->options,
+            $options
+        );
     }
 
     /**

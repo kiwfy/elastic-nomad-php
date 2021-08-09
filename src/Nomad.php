@@ -7,45 +7,70 @@ use ElasticNomad\Restore;
 
 class Nomad
 {
-    private $operationsMethods = [
-        'backup' => 'newBackup',
-        'restore' => 'newRestore',
-    ];
-
-    public function execute(
-        string $operation
-    ) {
-        $method = $this->operationsMethods[$operation];
-        $class = $this->$method();
-        $class->execute();
+    /**
+     * Execute backup.
+     *
+     * @param array $options
+     * @return void
+     */
+    public function backup(
+        array $options
+    ): void {
+        $backup = $this->newBackup();
+        $backup->execute(
+            [
+                'elasticsearch' => [
+                    'size' => getenv('BACKUP_ELASTICSEARCH_SIZE') ?? 25,
+                    'index' => $options['index'] ?? '',
+                ],
+                's3' => [
+                    'enabled' => getenv('BACKUP_S3_ENABLED') ?? 0,
+                    'bucket' => getenv('BACKUP_S3_BUCKET') ?? '',
+                    'folder' => getenv('BACKUP_S3_FOLDER') ?? '',
+                ],
+                'file' => [
+                    'total_items' => getenv('BACKUP_FILE_TOTAL_ITEMS') ?? 100,
+                    'date' => date('Ymd'),
+                    'time' => date('His'),
+                ],
+            ]
+        );
     }
 
-    public function newBackup()
-    {
-        return new Backup([
-            'elasticsearch' => [
-                'index' => getenv('BACKUP_ELASTICSEARCH_INDEX') ?? '',
-                'size' => getenv('BACKUP_ELASTICSEARCH_SIZE') ?? 25,
-            ],
-            's3' => [
-                'enabled' => getenv('BACKUP_S3_ENABLED') ?? 0,
-                'bucket' => getenv('BACKUP_S3_BUCKET') ?? '',
-                'folder' => getenv('BACKUP_S3_FOLDER') ?? '',
-            ],
+    /**
+     * Execute restore.
+     *
+     * @param array $options
+     * @return void
+     */
+    public function restore(
+        array $options
+    ): void {
+        $restore = $this->newRestore();
+        $restore->execute([
             'file' => [
-                'total_items' => getenv('BACKUP_FILE_TOTAL_ITEMS') ?? 100,
+                'name' => $options['file_name'] ?? '',
             ],
         ]);
     }
 
-    public function newRestore()
+    /**
+     * Get new Backup object.
+     *
+     * @return Backup
+     */
+    public function newBackup(): Backup
     {
-        return new Restore([
-            's3' => [
-                'enabled' => getenv('RESTORE_S3_ENABLED') ?? 0,
-                'bucket' => getenv('RESTORE_S3_BUCKET') ?? '',
-                'files' => getenv('RESTORE_S3_FILES') ?? '',
-            ],
-        ]);
+        return new Backup();
+    }
+
+    /**
+     * Get new Restore object.
+     *
+     * @return Restore
+     */
+    public function newRestore(): Restore
+    {
+        return new Restore();
     }
 }

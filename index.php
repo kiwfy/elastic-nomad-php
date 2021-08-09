@@ -11,6 +11,15 @@ $validOperations = [
     'backup',
     'restore',
 ];
+$operationsParams = [
+    'backup' => [
+        'index',
+    ],
+    'restore' => [
+        'file_name',
+    ],
+];
+
 $operation = $argv[1] ?? '';
 
 if (!in_array($operation, $validOperations)) {
@@ -18,5 +27,25 @@ if (!in_array($operation, $validOperations)) {
     die;
 }
 
+$params = array_slice(
+    $argv,
+    2
+);
+
+if (
+    isset($operationsParams[$operation]) &&
+    count($params) < count($operationsParams[$operation])
+) {
+    echo 'Please, provide all the parameters: ' . implode(', ', $operationsParams[$operation]);
+    die;
+}
+
+$options = [];
+if (isset($operationsParams[$operation])) {
+    foreach ($operationsParams[$operation] as $index => $paramName) {
+        $options[$paramName] = $params[$index];
+    }
+}
+
 $nomad = new Nomad();
-$nomad->execute($operation);
+$nomad->{$operation}($options);

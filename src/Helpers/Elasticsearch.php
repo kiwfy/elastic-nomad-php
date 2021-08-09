@@ -19,6 +19,14 @@ class Elasticsearch
         ];
     }
 
+    /**
+     * Index document.
+     *
+     * @param string $index
+     * @param string $id
+     * @param array $body
+     * @return bool
+     */
     public function index(
         string $index,
         string $id,
@@ -38,6 +46,38 @@ class Elasticsearch
         }
     }
 
+    /**
+     * Get document.
+     *
+     * @param string $index
+     * @param string $id
+     * @return array
+     */
+    public function getDocument(
+        string $index,
+        string $id
+    ): array {
+        try {
+            $client = $this->newElasticsearchClient();
+            $response = $client->get([
+                'index' => $index,
+                'id' => $id,
+            ]);
+
+            return $response;
+        } catch (Exception $error) {
+            return [];
+        }
+    }
+
+    /**
+     * Search documents.
+     *
+     * @param string $index
+     * @param array $body
+     * @param int $size
+     * @return array
+     */
     public function search(
         string $index,
         array $body,
@@ -49,7 +89,7 @@ class Elasticsearch
                 'scroll' => '1m',
                 'size' => $size,
                 'body' => $body,
-                'index' => $index . '-*',
+                'index' => $index,
             ]);
 
             return $response;
@@ -58,6 +98,12 @@ class Elasticsearch
         }
     }
 
+    /**
+     * Scroll search for documents.
+     *
+     * @param string $scrollId
+     * @return array
+     */
     public function scroll(
         string $scrollId
     ): array {
@@ -76,6 +122,11 @@ class Elasticsearch
         }
     }
 
+    /**
+     * Get new ElasticsearchClient object.
+     *
+     * @return Client
+     */
     public function newElasticsearchClient(): Client
     {
         $client = ClientBuilder::create()

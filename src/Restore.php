@@ -10,34 +10,26 @@ use Ulid\Ulid;
 
 class Restore
 {
-    private $settings = [
-        's3' => [
-            'enabled' => 0,
-            'bucket' => '',
-            'files' => '',
+    private $options = [
+        'file' => [
+            'name' => '',
         ],
     ];
 
     private $log;
     private $elasticsearch;
-    private $s3;
-
-    public function __construct(
-        array $settings
-    ) {
-        $this->settings = array_merge(
-            $this->settings,
-            $settings
-        );
-    }
+    private $errorsCount = 0;
 
     /**
      * Execute Restore.
      *
      * @return void
      */
-    public function execute(): void
-    {
+    public function execute(
+        array $options
+    ): void {
+        $this->setOptions($options);
+
         $this->log = $this->newLog();
         $this->elasticsearch = $this->newElasticsearch();
         $this->s3 = $this->newS3();
@@ -46,16 +38,46 @@ class Restore
         $this->log->show('Starting Restore');
 
         try {
-            $this->downloadFilesToRestore();
+            file_put_contents(
+                'logs/errors.log',
+                ''
+            );
 
-            $fileNames = $this->listFilesToRestore();
+            $filePath = 'storage/restore/' . $this->options['file']['name'];
+            $handle = fopen(
+                $filePath,
+                'r'
+            );
 
-            foreach ($fileNames as $fileName) {
-                $this->indexFileItems(
-                    $fileName
+            if (empty($handle)) {
+                return;
+            }
+
+            $index = fgets($handle);
+            $index = json_decode(
+                $index,
+                true
+            );
+            $indexName = $index['index'] ?? '';
+
+            while (($row = fgets($handle)) !== false) {
+                $this->indexItem(
+                    $indexName,
+                    $row
                 );
             }
 
+            fclose($handle);
+
+            if ($this->errorsCount) {
+                $this->log->show(
+                    'Some documents could not be indexed because they already exist ' .
+                    'within the specified index. You can check these items in the file ' .
+                    '"logs/errors.log"'
+                );
+            }
+
+            $this->log->show('Restore finished');
             $this->log->showDuration();
         } catch (Exception $error) {
             print_r($error->getMessage());
@@ -63,98 +85,77 @@ class Restore
     }
 
     /**
-     * Download files to restore from S3.
+     * Index item into Elasticsearch.
      *
+     * @param string $indexName
+     * @param string $row
      * @return bool
      */
-    public function downloadFilesToRestore(): bool
-    {
-        if (!$this->settings['s3']['enabled']) {
-            return false;
-        }
-
-        $keys = explode(
-            ',',
-            $this->settings['s3']['files']
-        );
-        $totalKeys = count($keys);
-
-        $this->log->show("Downloading $totalKeys files from S3");
-
-        foreach ($keys as $key) {
-            $fileNameParts = explode(
-                '/',
-                $key
-            );
-            $fileName = end($fileNameParts);
-
-            $this->s3->download(
-                $this->settings['s3']['bucket'],
-                $key,
-                'storage/restore/' . $fileName
-            );
-        }
-
-        return true;
-    }
-
-    /**
-     * List files to restore.
-     *
-     * @return array
-     */
-    public function listFilesToRestore(): array
-    {
-        $files = scandir(
-            'storage/restore'
-        );
-        $files = array_slice(
-            $files,
-            3
-        );
-
-        return $files;
-    }
-
-    /**
-     * Index file items into Elasticsearch.
-     *
-     * @param string $fileName
-     * @return bool
-     */
-    public function indexFileItems(
-        string $fileName
+    public function indexItem(
+        string $indexName,
+        string $row
     ): bool {
-        $handle = fopen(
-            'storage/restore/' . $fileName,
-            'r'
+        $item = json_decode(
+            trim($row),
+            true
         );
 
-        if (empty($handle)) {
+        $document = $this->elasticsearch->getDocument(
+            $indexName,
+            $item['_id']
+        );
+
+        if ($document) {
+            $this->logDuplicationError(
+                $document
+            );
             return false;
         }
 
-        while (($line = fgets($handle)) !== false) {
-            $item = json_decode(
-                trim($line),
-                true
-            );
+        $this->elasticsearch->index(
+            $indexName,
+            $item['_id'],
+            $item['_source']
+        );
 
-            $this->elasticsearch->index(
-                $item['_index'],
-                $item['_id'],
-                $item['_source']
-            );
-
-            file_put_contents(
-                'logs/last-restored.txt',
-                json_encode($item)
-            );
-        }
-
-        fclose($handle);
+        file_put_contents(
+            'logs/last-restored.log',
+            json_encode($item)
+        );
 
         return true;
+    }
+
+    /**
+     * Log duplication error.
+     *
+     * @param array $document
+     * @return void
+     */
+    public function logDuplicationError(
+        array $document
+    ): void {
+        file_put_contents(
+            'logs/errors.log',
+            json_encode($document) . "\n",
+            FILE_APPEND
+        );
+        $this->errorsCount ++;
+    }
+
+    /**
+     * Set options.
+     *
+     * @param array $options
+     * @return void
+     */
+    public function setOptions(
+        array $options
+    ): void {
+        $this->options = array_merge(
+            $this->options,
+            $options
+        );
     }
 
     /**
