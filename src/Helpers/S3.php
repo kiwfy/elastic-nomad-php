@@ -13,7 +13,7 @@ class S3
     {
         $this->settings = [
             'version' => getenv('S3_VERSION') ?? '',
-            'region' => getenv('S3_REGION') ?? '',
+            'region' => getenv('AWS_REGION') ?? '',
             'credentials' => [
                 'key' => getenv('AWS_KEY') ?? '',
                 'secret' => getenv('AWS_SECRET') ?? '',
