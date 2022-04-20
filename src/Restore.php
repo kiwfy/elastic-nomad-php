@@ -4,7 +4,7 @@ namespace ElasticNomad;
 
 use ElasticNomad\Helpers\Elasticsearch;
 use ElasticNomad\Helpers\Log;
-use ElasticNomad\Helpers\S3;
+use ElasticNomad\Helpers\S3Helper;
 use Exception;
 use Ulid\Ulid;
 
@@ -181,11 +181,11 @@ class Restore
     /**
      * Get new S3 object.
      *
-     * @return S3
+     * @return S3Helper
      */
-    public function newS3(): S3
+    public function newS3(): S3Helper
     {
-        return new S3();
+        return new S3Helper();
     }
 
     /**

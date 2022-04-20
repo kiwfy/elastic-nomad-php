@@ -1,15 +1,53 @@
 {
-    "name": "pedro/elastic-nomad-php",
+    "name": "kiwfy/elastic-nomad-php",
+    "description": "PHP script to execute Elasticsearch backups and restorations using S3",
+    "version": "1.0.0",
     "type": "project",
+    "license": "GPL-3.0-only",
     "require": {
-        "vlucas/phpdotenv": "^4.1",
-        "elasticsearch/elasticsearch": "~7.0",
-        "kiwfy/ulid-php": "^1.0",
-        "aws/aws-sdk-php": "^3.187"
+        "php": "^8.1",
+        "vlucas/phpdotenv": "^5.4",
+        "elasticsearch/elasticsearch": "^8.1",
+        "aws/aws-sdk-php": "^3.220",
+        "kiwfy/ulid-php": "^2.0"
     },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0",
+        "mockery/mockery": "^1.5",
+        "squizlabs/php_codesniffer": "^3.6.2",
+        "phpmd/phpmd": "^2.11.1"
+    },
+    "authors": [
+        {
+            "name": "Developer",
+            "email": "dev@kiwfy.com"
+        }
+    ],
     "autoload": {
         "psr-4": {
             "ElasticNomad\\": "src/"
         }
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "bash contrib/setup.sh"
+        ],
+        "check": [
+            "@lint",
+            "@cs",
+            "@mess",
+            "@test",
+            "@ccu"
+        ],
+        "mess" : [
+            "vendor/bin/phpmd ./src text phpmd.xml"
+        ],
+        "lint": [
+            "find ./src -name '*.php' -print0 | xargs -0 -n1 -P8 php -l -d display_errors=0",
+            "find ./tests -name '*.php' -print0 | xargs -0 -n1 -P8 php -l -d display_errors=0"
+        ],
+        "cs": "vendor/bin/phpcs",
+        "test": "phpdbg -qrr vendor/bin/phpunit --configuration phpunit.xml -d memory_limit=1024M",
+        "ccu" : "php contrib/coverage-checker.php coverage/coverage.xml 100"
     }
 }

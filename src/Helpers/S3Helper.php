@@ -5,7 +5,7 @@ namespace ElasticNomad\Helpers;
 use Aws\S3\S3Client;
 use Exception;
 
-class S3
+class S3Helper
 {
     private $settings = [];
 

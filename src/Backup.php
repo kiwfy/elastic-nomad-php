@@ -4,7 +4,7 @@ namespace ElasticNomad;
 
 use ElasticNomad\Helpers\Elasticsearch;
 use ElasticNomad\Helpers\Log;
-use ElasticNomad\Helpers\S3;
+use ElasticNomad\Helpers\S3Helper;
 use Exception;
 use Ulid\Ulid;
 
@@ -30,7 +30,7 @@ class Backup
     private $currentFile = [];
     private $log;
     private $elasticsearch;
-    private $s3;
+    private $s3Obj;
 
     /**
      * Execute Backup.
@@ -45,7 +45,7 @@ class Backup
 
         $this->log = $this->newLog();
         $this->elasticsearch = $this->newElasticsearch();
-        $this->s3 = $this->newS3();
+        $this->s3Obj = $this->newS3();
 
         $this->log->logStartTime();
         $this->log->show('Starting Backup');
@@ -58,10 +58,12 @@ class Backup
                 $this->options['elasticsearch']['size']
             );
 
-            while (
-                isset($response['hits']['hits']) &&
-                count($response['hits']['hits']) > 0
-            ) {
+            $hitsCount = 0;
+            if (isset($response['hits']['hits'])) {
+                $hitsCount = count($response['hits']['hits']);
+            }
+
+            while ($hitsCount > 0) {
                 $hits = $response['hits']['hits'] ?? [];
                 $this->handleHits(
                     $hits
@@ -71,6 +73,8 @@ class Backup
                 $response = $this->elasticsearch->scroll(
                     $scrollId
                 );
+
+                $hitsCount = count($response['hits']['hits']);
             }
 
             $this->uploadFiles();
@@ -217,7 +221,7 @@ class Backup
                 '/' .
                 $fileName;
 
-            $this->s3->uploadFile(
+            $this->s3Obj->uploadFile(
                 $this->options['s3']['bucket'],
                 $key,
                 $path . $fileName
@@ -265,11 +269,11 @@ class Backup
     /**
      * Get new S3 object.
      *
-     * @return S3
+     * @return S3Helper
      */
-    public function newS3(): S3
+    public function newS3(): S3Helper
     {
-        return new S3();
+        return new S3Helper();
     }
 
     /**

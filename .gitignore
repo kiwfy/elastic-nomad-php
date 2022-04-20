@@ -1,3 +1,4 @@
+coverage
 vendor
 .env
 logs/*
@@ -6,3 +7,4 @@ storage/backup/*
 storage/restore/*
 !storage/backup/.gitkeep
 !storage/restore/.gitkeep
+.phpunit.result.cache
